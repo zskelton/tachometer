@@ -21,22 +21,21 @@
 #define SCREEN_ADDRESS 0x3C
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// 
-void updateDisplay(bool hit) {
+// Globals
+int objects = 1;
+
+// Display Text
+void printText(String msg) {
   display.clearDisplay();
-  display.setTextSize(2);
+  display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(0, 0);
+  display.setCursor(0, 10);
   display.cp437(true);
-  if (hit) {
-    display.println("Object!");
-  } else {
-    display.println("...");
-  }
+  display.println(msg);
   display.display();
 }
 
-// the setup function runs once when you press reset or power the board
+// Initialize Device
 void setup() {  
   // Start Serial
   Serial.begin(9600);
@@ -47,27 +46,52 @@ void setup() {
     for(;;); // Loop Forever
   }
 
-  // Set up Devices
-  display.display();
-  delay(200);
-  
   // Set Pin Mode
   pinMode(IR, INPUT);
   pinMode(LED, OUTPUT);
+
+  // Set up Devices
+  display.display();
 
   // Clear the Buffer
   display.clearDisplay();
 }
 
-// the loop function runs over and over again forever
+// Main Loop
 void loop() {
-  if (digitalRead(IR) == LOW) {
-    digitalWrite(LED, HIGH);
-    updateDisplay(true);
-  } else {
-    digitalWrite(LED, LOW);
-    updateDisplay(false);
+  // Local Variables
+  float _timer = 0;
+  float _rpm = 0;
+  int _count = 0;
+  bool _onhit = false;
+  
+  // Get Samples
+  _timer = micros();
+  while(((micros() - _timer)/1000000.0) < 1.0) {
+    // Count Hit
+    if(digitalRead(IR) == LOW && !_onhit) {
+      _count++;
+      _onhit = true;
+    }
+    // Shut off hit indicator
+    if(digitalRead(IR) == HIGH && _onhit) {
+      _onhit = false;
+    }
   }
+
+  // Calculate Elapsed Time
+  _rpm = ((_count * 60) / objects);
+  String message = String("RPM: " + String(_rpm));
+  printText(message);
+
+  // Debug Data
+  Serial.print("Count: ");
+  Serial.print(_count);
+  Serial.print(" Hits.\n");
+
+  Serial.print("RPM: ");
+  Serial.print(_rpm);
+  Serial.print("\n");
 
   // Wait
   delay(100);
